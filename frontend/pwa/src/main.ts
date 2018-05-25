@@ -4,7 +4,7 @@ export function init() {
   statusInit()
 }
 
-const apiUrl = 'http://localhost:3000/'
+const apiUrl = 'http://chargingstation:3000/'
 
 export async function doRequest (method: "start"|"status"|"stop", id:string) {
   const res = await fetch(apiUrl + method + `?id=${id}`, {

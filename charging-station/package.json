@@ -2,7 +2,9 @@
   "name": "charging-station",
   "version": "1.0.0",
   "description": "",
-  "scripts": {},
+  "scripts": {
+    "start": "node api.js"
+  },
   "author": "",
   "license": "ISC",
   "dependencies": {

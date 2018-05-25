@@ -9,7 +9,8 @@
     "alwaysStrict": true,
     "allowUnreachableCode": false,
     "pretty": true,
-    "sourceMap": false
+    "sourceMap": false,
+    "lib": [ "es2015" ]
   },
   "exclude": [
     "node_modules"

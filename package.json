@@ -4,10 +4,11 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "ganache": "node node_modules/ganache-cli/build/cli.node.js --networkId 1337 -h localhost -p 7545 --secure --unlock 0 --defaultBalanceEther 10 --gasPrice 2000000000",
-    "pwa": "http-server -c-1 -o --cors",
-    "start": "node charging-station/api.js",
-    "ipfs": "ipfs add -rQ ./pwa",
+    "ganache": "cd frontend; node node_modules/ganache-cli/build/cli.node.js --networkId 1337 -h localhost -p 7545 --secure --unlock 0 --defaultBalanceEther 10 --gasPrice 2000000000",
+    "pwa": "cd frontend; http-server -c-1 -o --cors",
+    "ipfs": "cd frontend; ipfs add -rQ g./pwa",
+    "start": "node chargin-station/api.js",
+    "build": "cd charging-station; tsc charging-station/*.ts",
     "develop": "cd charging-station; nodemon api.js --delay 300ms -- test"
   },
   "author": "",

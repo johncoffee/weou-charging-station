@@ -1,0 +1,16 @@
+{
+  "name": "weou-car-charging",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "ganache": "node node_modules/ganache-cli/build/cli.node.js --networkId 1337 -h localhost -p 7545 --secure --unlock 0 --defaultBalanceEther 10 --gasPrice 2000000000",
+    "start": "http-server -c-1 -o --cors",
+    "ipfs": "ipfs add -rQ ./pwa"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "ganache-cli": "^6.1.0"
+  }
+}
