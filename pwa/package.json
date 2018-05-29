@@ -5,13 +5,14 @@
   "author": "",
   "license": "ISC",
   "devDependencies": {
+    "typescript": "^2.8.3"
   },
   "dependencies": {
     "foundation-sites": "^6.4.4-rc1",
     "lit-html": "^0.10.0"
   },
   "scripts": {
-    "start": "http-server ./ -c-1 -o --cors",
-    "ipfs": "ipfs add -rQ ./pwa"
+    "start": "http-server ./ -c-1 --cors",
+    "ipfs": "ipfs add -rQ ."
   }
 }
