@@ -3,12 +3,11 @@ import { init as statusInit } from './status.js'
 export function init() {
   statusInit()
 }
-
-const apiUrl = 'http://localhost:3000/'
-
 export async function doRequest (method: "start"|"status"|"stop") {
-  console.debug(getUrlParameters())
-  const res = await fetch(apiUrl + method + `?` + getUrlParameters(), {
+  const baseUrl = new URL(getValue('[name=charging-station-backend]'))
+  baseUrl.pathname += method
+  let urlStateful = baseUrl + `?` + getUrlParameters()
+  const res = await fetch(urlStateful, {
     mode: 'cors',
     cache: 'no-cache',
   })
@@ -21,9 +20,17 @@ export async function doRequest (method: "start"|"status"|"stop") {
 
 function getUrlParameters():string {
   return [
-    "id=" + encodeURIComponent(document.querySelector('[name=charging-station-id]').getAttribute('value')),
-    "url="+encodeURIComponent(document.querySelector('[name=charging-station-url]').getAttribute('value')),
-    "return="+encodeURIComponent(document.querySelector('[name=return-funds]').getAttribute('value')),
+    "id=" + encodeURIComponent(getValue('[name=charging-station-id]')),
+    "url="+encodeURIComponent(getValue('[name=charging-station-url]')),
+    "return="+encodeURIComponent(getValue('[name=return-funds]')),
   ]
   .join("&")
+}
+
+function getValue(selector:string):string {
+  return (document.querySelector(selector) as HTMLInputElement).value
+}
+
+export function setValue(selector:string, value:string):string {
+  return (document.querySelector(selector) as HTMLInputElement).value = value
 }

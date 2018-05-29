@@ -1,5 +1,5 @@
 import { html, render } from '../node_modules/lit-html/lit-html.js'
-import { doRequest } from './main.js'
+import { doRequest, setValue } from './main.js'
 
 const delay = 3 * 1000
 
@@ -27,11 +27,15 @@ export function init() {
 
   const id = getQueryVariable('id')
   if (id) {
-    document.querySelector('[name="charging-station-id"').setAttribute('value', id)
+    setValue('[name=charging-station-id', id)
   }
   const url = getQueryVariable('url')
   if (url) {
-    document.querySelector('[name="charging-station-url"').setAttribute('value', url)
+    setValue('[name=charging-station-url', url)
+  }
+  const backend = getQueryVariable('backend')
+  if (backend) {
+    setValue('[name=charging-station-backend', url)
   }
 
   // initial render
