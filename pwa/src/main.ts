@@ -6,8 +6,9 @@ export function init() {
 
 const apiUrl = 'http://localhost:3000/'
 
-export async function doRequest (method: "start"|"status"|"stop", id:string, returnFunds?:string) {
-  const res = await fetch(apiUrl + method + `?id=${id}&return=${returnFunds}`, {
+export async function doRequest (method: "start"|"status"|"stop") {
+  console.debug(getUrlParameters())
+  const res = await fetch(apiUrl + method + `?` + getUrlParameters(), {
     mode: 'cors',
     cache: 'no-cache',
   })
@@ -16,4 +17,13 @@ export async function doRequest (method: "start"|"status"|"stop", id:string, ret
     json = await res.json()
   }
   return json
+}
+
+function getUrlParameters():string {
+  return [
+    "id=" + encodeURIComponent(document.querySelector('[name=charging-station-id]').getAttribute('value')),
+    "url="+encodeURIComponent(document.querySelector('[name=charging-station-url]').getAttribute('value')),
+    "return="+encodeURIComponent(document.querySelector('[name=return-funds]').getAttribute('value')),
+  ]
+  .join("&")
 }

@@ -6,7 +6,7 @@ const delay = 3 * 1000
 async function poll (loop:boolean) {
   let json
   try {
-    json = await doRequest('status', (document.querySelector('[name=charging-station-id]') as HTMLInputElement).value)
+    json = await doRequest('status')
   }
   catch (e) {
     loop = false
@@ -80,10 +80,7 @@ function update (state:State) {
 
   document.querySelector('.charging-controls__start').addEventListener('click', async (evt) => {
     startBtn.disabled = true
-    await doRequest('start',
-      (document.querySelector('[name=charging-station-id]') as HTMLInputElement).value,
-      (document.querySelector('[name=return-funds]') as HTMLInputElement).value
-    )
+    await doRequest('start')
     await poll(false)
     startBtn.disabled = false
   })
@@ -91,7 +88,7 @@ function update (state:State) {
   document.querySelector('.charging-controls__stop').addEventListener('click', async (evt) => {
     const btn = (evt.target as HTMLButtonElement)
     btn.disabled = true
-    await doRequest('stop', (document.querySelector('[name=charging-station-id]') as HTMLInputElement).value)
+    await doRequest('stop')
     await poll(false)
     btn.disabled = false
 
