@@ -45,7 +45,7 @@ routes.set('/start', async (ctx:Context) => {
   const chargingStagingAddress:string = ctx.request.query.id
   const returnFundsAddress:string = ctx.request.query.return
   console.assert(!!chargingStagingAddress, `missing query parameter 'id'`)
-  const baseUrl = new URL(ctx.request.query.url)
+  const baseUrl = new URL(  decodeURIComponent(ctx.request.query.url) )
 
   const station = new ChargingStation(chargingStagingAddress, baseUrl.toString())
   const budget = await getBalanceOf(chargingStagingAddress)
@@ -60,14 +60,14 @@ routes.set('/start', async (ctx:Context) => {
 routes.set('/stop', async (ctx:Context) => {
   const id = ctx.request.query.id
   console.assert(!!id, `missing query parameter 'id'`)
-  const baseUrl = new URL(ctx.request.query.url) // no need: a?.b?.c
+  const baseUrl = new URL(  decodeURIComponent(ctx.request.query.url) )
   const station = new ChargingStation(id, baseUrl.toString())
   await station.stopCharge()
 })
 
 routes.set('/status', async (ctx:Context) => {
   const id = ctx.request.query.id
-  const baseUrl = new URL(ctx.request.query.url)
+  const baseUrl = new URL(  decodeURIComponent(ctx.request.query.url) )
 
   console.assert(!!id, `missing query parameter 'id'`)
 
