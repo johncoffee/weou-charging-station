@@ -23,21 +23,21 @@
 
         <div class="grid-x grid-margin-x">
 
-            <div class="cell medium-4">
+            <div class="cell medium-6">
                 <charging-status></charging-status>
             </div>
 
             <form class="cell small-12">
                 <div class="grid-x grid-margin-x">
-                    <div class="large-12 cell">
+                    <div class="medium-6 cell">
                         <label>
-                            Charging station address
-                            <input name="charging-station-id" value="0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca" type="text" minlength="42" maxlength="42">
+                            Backend URL
+                            <input name="charging-station-backend" value="http://charging_backend:3000" required type="url">
                         </label>
                     </div>
-                    <div class="large-6 cell">
+                    <div class="medium-6 cell">
                         <label>
-                            Charging station IP
+                            Charging station URL
                             <input name="charging-station-url" value="http://10.170.111.0:8088" required type="url">
                         </label>
                     </div>
@@ -45,6 +45,12 @@
                         <label>
                             Customer address (for return funds)
                             <input type="text" name="return-funds" value="0xd841891e862c30541e7ffdf4e388792f75d304a1" minlength="42" maxlength="42">
+                        </label>
+                    </div>
+                    <div class="large-6 cell">
+                        <label>
+                            Charging station address
+                            <input name="charging-station-id" value="0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca" type="text" minlength="42" maxlength="42">
                         </label>
                     </div>
                 </div>
