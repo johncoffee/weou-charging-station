@@ -1,4 +1,4 @@
-import { html, render } from '../node_modules/lit-html/src/lit-html.js'
+import { html, render } from '../node_modules/lit-html/lit-html.js'
 import { doRequest } from './main.js'
 
 const delay = 3 * 1000
