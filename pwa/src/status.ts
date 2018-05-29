@@ -35,7 +35,7 @@ export function init() {
   }
   const backend = getQueryVariable('backend')
   if (backend) {
-    setValue('[name=charging-station-backend', url)
+    setValue('[name=charging-station-backend', backend)
   }
 
   // initial render
