@@ -109,6 +109,6 @@ interface State {
   kWhTotal:number
 }
 
-async function wait (delay:number) {
+function wait (delay:number) {
   return new Promise(resolve => setTimeout(()=> resolve(), delay * 1000))
 }
