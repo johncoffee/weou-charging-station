@@ -45,7 +45,29 @@ export function init() {
     kW: -1,
     kWhTotal: -1,
   })
-  poll()
+
+  document.querySelector('.charging-controls__start').addEventListener('click', async (evt) => {
+    const startBtn = evt.target as HTMLButtonElement
+    startBtn.disabled = true
+    try {
+      await doRequest('start')
+      await poll(0)
+    }
+    catch (e) {
+      console.error(e)
+    }
+    finally {
+      startBtn.disabled = false
+    }
+  })
+  // document.querySelector('.charging-controls__stop').addEventListener('click', async (evt) => {
+  //   const btn = (evt.target as HTMLButtonElement)
+  //   btn.disabled = true
+  //   await doRequest('stop')
+  //   await poll(0)
+  //   btn.disabled = false
+  // })
+  poll(1.5)
 }
 
 export function getQueryVariable(variable:string):string|undefined {
@@ -81,24 +103,6 @@ function update (state:State) {
   <p><button class="button expanded large primary charging-controls__start ${state.kW == 0 ? 'hide' : ''}">START</button></p>
 `
   render(template,   document.querySelector('charging-status'))
-
-  const startBtn = (document.querySelector('.charging-controls__start') as HTMLButtonElement)
-  startBtn.disabled = (state.balance === 0)
-
-  document.querySelector('.charging-controls__start').addEventListener('click', async (evt) => {
-    startBtn.disabled = true
-    await doRequest('start')
-    await poll(0)
-    startBtn.disabled = false
-  })
-
-  // document.querySelector('.charging-controls__stop').addEventListener('click', async (evt) => {
-  //   const btn = (evt.target as HTMLButtonElement)
-  //   btn.disabled = true
-  //   await doRequest('stop')
-  //   await poll(0)
-  //   btn.disabled = false
-  // })
 }
 
 interface State {
