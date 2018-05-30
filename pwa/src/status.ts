@@ -1,25 +1,24 @@
 import { html, render } from '../node_modules/lit-html/lit-html.js'
 import { doRequest, setValue } from './main.js'
 
-const delay = 3 * 1000
-
-async function poll (loop:boolean) {
+async function poll (delay:number = 1) {
   let json
   try {
     json = await doRequest('status')
   }
   catch (e) {
-    loop = false
     console.error(e)
-    console.error("Stopped polling")
+    delay = Math.min(30, delay + 5)
+    console.log(`Trouble getting status, waiting ${delay} s before retrying`)
   }
 
   if (json) {
     update(json as State)
   }
 
-  if (loop) {
-    setTimeout(() => poll(loop), delay)
+  if (delay > 0) {
+    await wait(delay)
+    poll(delay)
   }
 }
 
@@ -43,10 +42,10 @@ export function init() {
     co2: -1,
     price: -1,
     balance: -1,
-    charging: false,
-    connected: false,
+    kW: -1,
+    kWhTotal: -1,
   })
-  poll(true)
+  poll()
 }
 
 export function getQueryVariable(variable:string):string|undefined {
@@ -62,20 +61,24 @@ export function getQueryVariable(variable:string):string|undefined {
 
 function update (state:State) {
   const template = html`
-  <div>
-    <p>CO2/kWh: ${state.co2}</p>
-    <p>Price: ${state.price} SVLN = 1 kWh</p>
-    <p>Balance on the station: <span>${state.balance}</span> SVLN
-    
-    <p>
-      <button class="button expanded large secondary">
-        ${!state.connected ? "CONNECT CAR" :
-           state.charging ? 'CHARGING' : '' }      
-      </button>
+
+  <div class="grid-x grid-margin-x grid-padding-x grid-margin-y grid-padding-y coloured-cells">
+    <div class="small-12 cell">
+       <h5 class="margin-0 subheader">Wattage</h5>
+       <h2 class="text-center margin-0">${state.kW} <span class="subheader">kW</span></h2>     
+    </div>    
+    <div class="small-6 cell">
+      <h5 class="margin-0 subheader">Price</h5>
+      <h2 class="text-center margin-0">${state.price} <span class="subheader">Svalin/kW</span></h2>
+    </div>
+    <div class="small-6 cell">
+      <h5 class="margin-0 subheader">Balance</h5>
+      <h2 class="text-center margin-0">${state.balance} <span class="subheader">Svalin</span></h2>
+    </div>     
   </div>
-  
-  <button class="button expanded large primary charging-controls__start ${state.charging ? 'hide' : ''}">START</button>
-  <button class="button expanded large secondary charging-controls__stop ${state.charging ? '' : 'hide'}">STOP</button>
+    
+  <p class="margin-1"></p> 
+  <p><button class="button expanded large primary charging-controls__start ${state.kW == 0 ? 'hide' : ''}">START</button></p>
 `
   render(template,   document.querySelector('charging-status'))
 
@@ -85,25 +88,27 @@ function update (state:State) {
   document.querySelector('.charging-controls__start').addEventListener('click', async (evt) => {
     startBtn.disabled = true
     await doRequest('start')
-    await poll(false)
+    await poll(0)
     startBtn.disabled = false
   })
 
-  document.querySelector('.charging-controls__stop').addEventListener('click', async (evt) => {
-    const btn = (evt.target as HTMLButtonElement)
-    btn.disabled = true
-    await doRequest('stop')
-    await poll(false)
-    btn.disabled = false
-
-  })
+  // document.querySelector('.charging-controls__stop').addEventListener('click', async (evt) => {
+  //   const btn = (evt.target as HTMLButtonElement)
+  //   btn.disabled = true
+  //   await doRequest('stop')
+  //   await poll(0)
+  //   btn.disabled = false
+  // })
 }
 
 interface State {
   co2:number
   price:number
   balance:number
-  charging:boolean
-  connected:boolean
+  kW:number
+  kWhTotal:number
 }
 
+async function wait (delay:number) {
+  return new Promise(resolve => setTimeout(()=> resolve(), delay * 1000))
+}

@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <title>Title</title>
     <link href="node_modules/foundation-sites/dist/css/foundation.min.css" rel="stylesheet">
+    <link href="node_modules/foundation-sites/dist/css/foundation-prototype.min.css" rel="stylesheet">
     <link href="src/style.css" rel="stylesheet">
     <script type="module">
         import { init } from './src/main.js'
@@ -23,12 +24,18 @@
 
         <div class="grid-x grid-margin-x">
 
-            <div class="cell medium-6">
+            <div class="cell small-12">
                 <charging-status></charging-status>
             </div>
 
             <form class="cell small-12">
                 <div class="grid-x grid-margin-x">
+                    <div class="large-6 cell">
+                        <label>
+                            Customer address (for return funds)
+                            <input type="text" name="return-funds" value="0xd841891e862c30541e7ffdf4e388792f75d304a1" minlength="42" maxlength="42">
+                        </label>
+                    </div>
                     <div class="medium-6 cell">
                         <label>
                             Backend URL
@@ -39,12 +46,6 @@
                         <label>
                             Charging station URL
                             <input name="charging-station-url" value="http://10.170.111.0:8088" required type="url">
-                        </label>
-                    </div>
-                    <div class="large-6 cell">
-                        <label>
-                            Customer address (for return funds)
-                            <input type="text" name="return-funds" value="0xd841891e862c30541e7ffdf4e388792f75d304a1" minlength="42" maxlength="42">
                         </label>
                     </div>
                     <div class="large-6 cell">
