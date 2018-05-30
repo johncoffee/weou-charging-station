@@ -15,7 +15,7 @@ export class ChargingStation {
   readonly baseUrl:string
 
   static handle:Map<string, ChargingState> = new Map<string, ChargingState>()
-  static updateDelay = 50
+  static updateDelay = 5.6
 
   constructor(id: string, baseUrl:string) {
     this.id = id
@@ -36,7 +36,7 @@ export class ChargingStation {
         .catch(err => console.error(err))
     }
     else {
-      console.log("Waiting...")
+      // console.log("Waiting...")
     }
   }
 
@@ -71,41 +71,38 @@ export class ChargingStation {
     })
   }
 
-  async startCharge (price:number, budget:number):Promise<number> {
-    const amps = 32
+  async chargeBudget (price_pr_kWh:number, budget:number):Promise<number> {
 
-    const url = new URL(this.baseUrl)
-    url.pathname += `setCurrentLimit/${amps}`
-    await httpRequest(url.toString(), {
-      method: 'PUT'
-    })
+    const chargingStationBaseUrl = new URL(this.baseUrl)
+    chargingStationBaseUrl.pathname += `/setCurrentLimit/32`
+    const startRes = await httpRequest(chargingStationBaseUrl.toString(), {method: 'PUT'})
+    console.assert(startRes.statusCode < 300, `Should have started (${startRes.statusCode} ${startRes.statusMessage})`)
 
-    const t0 = new Date()
-    const maxChargeCycle = 30 // seconds
+    const maxChargeCycle = 5 // seconds
     let chargeCycle:number = maxChargeCycle
-    let status:ChargingState
 
-    do {
-      let wattage:number = status.kW/1000 // = 0.0077 // Mj/s
-      price = 200/3.6 // 200 cents/kWh = 200/3.6 cents / 3.6/3.6 Mj = 55.5556 / 1
-      // let budget:number = 400 // cents
+    const stateInitial = ChargingStation.handle.get(this.id)
+    let start_Mj:number =  stateInitial.kWhTotal/3.6
+    // 1kWh = 3.6 Mj
+    const price_pr_Mj = price_pr_kWh/3.6 // 200 cents/3.6Mj = 55.5556 cents / 1 Mj
 
-      if (status.kW > 0) {
+    while (chargeCycle > 0 && chargeCycle < 60 * 60 * 12) {
+      const state = ChargingStation.handle.get(this.id)
+      const wattage_MW:number = state.kW/1000 // = 0.0077 // Mj/s
+      if (state.kW > 1) { // margin for charger own usage or other possible weird effects
         // find time
-        const t1 = new Date()
-        const elapsedTime_s = (t1.getTime() - t0.getTime()) / 1000
-        const cents_s = wattage * price // 0.0077 Mj/s * 55.5556 cents / Mj = 4.2 cents/s
-        const subtract = elapsedTime_s * cents_s // s - cents / s
-        budget -= subtract // cents
-        const budgetInSeconds = calcSeconds(budget, wattage, price)
-
-        chargeCycle = Math.min(maxChargeCycle, budgetInSeconds) // max 1
-        await wait(chargeCycle)
+        const spent_Mj = state.kWhTotal/3.6 - start_Mj
+        start_Mj = state.kWhTotal/3.6
+        const cents_spent = spent_Mj * price_pr_Mj
+        console.log(`Subtract ${cents_spent}`)
+        budget -= cents_spent
       }
-    }
-    while (chargeCycle > 0)
 
-    await this.setCurrentLimit(6)
+      const secondsLeft = calcSeconds(budget, wattage_MW, price_pr_Mj)
+      console.log(`With wattage ${wattage_MW} and price ${price_pr_Mj} there's ${secondsLeft} s left`)
+      chargeCycle = Math.min(maxChargeCycle, secondsLeft)
+      await wait(chargeCycle)
+    }
 
     return budget
   }
@@ -126,14 +123,14 @@ export class ChargingStation {
   }
 }
 
-function calcSeconds(budget_cents:number, wattage_Mjs:number, price_cents:number):number {
+function calcSeconds(budget_cents:number, wattage_Mjs:number, cents_pr_Mj:number):number {
   // budget 2 Mj = 400 cents / 200 cents/Mj
   // time 259 s = 2 Mj / 0.0077 Mj/s
-  const budget_Mj = budget_cents / price_cents
+  const budget_Mj = budget_cents / cents_pr_Mj
   const time_s = budget_Mj / wattage_Mjs
   return time_s
 }
 
-async function wait (delay:number) {
-  return new Promise(resolve => setTimeout(()=> resolve(), delay * 1000))
+function wait (delay:number):Promise<void> {
+  return new Promise(resolve => setTimeout(() => resolve(), delay * 1000))
 }

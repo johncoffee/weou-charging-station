@@ -49,14 +49,13 @@ export async function transferFrom(from:string, to:string, amount:number):Promis
 }
 
 async function main (target:string):Promise<void> {
-  console.log(`token contract address ${contractAddress}`)
   console.log(`from ${getAddress()}`)
+  console.log(`token contract address ${contractAddress}`)
   getBalanceOf(target)
     .then(val => console.log(val))
 }
 
 if (!module.parent) {
-  console.assert(process.argv[2])
   try {
     main(process.argv[2])
   }

@@ -10,7 +10,7 @@ const app = new Koa()
 const routes = new Map<string, Function>()
 
 const router = async (ctx:Context) => {
-  console.log(ctx.method, ctx.request.path, ctx.request.originalUrl)
+  console.log(ctx.method, ctx.request.originalUrl)
   const fn = routes.get(ctx.request.path)
   if (fn) {
     await fn(ctx)
@@ -49,11 +49,21 @@ routes.set('/start', async (ctx:Context) => {
 
   const station = new ChargingStation(chargingStagingAddress, baseUrl.toString())
   const budget = await getBalanceOf(chargingStagingAddress)
-  station.startCharge(budget) // dont await this, it will run for hours
-    .then(() => {
-      if (returnFundsAddress)
-        console.log(`transfer rest ${chargingStagingAddress} ${returnFundsAddress} ${budget}`)
-        transferFrom(chargingStagingAddress, returnFundsAddress, budget)
+
+  console.log("START")
+  station.chargeBudget(200, budget) // dont await this, it will run for hours
+    .then((returnFunds) => {
+      if (returnFundsAddress && returnFunds > 1) {
+        console.log(`transfer rest to ${returnFundsAddress} ${returnFunds}`)
+        transferFrom(chargingStagingAddress, returnFundsAddress, returnFunds)
+      }
+      else {
+        console.log("Did not return " + returnFunds)
+      }
+    })
+    .catch((e) => {
+      console.log("Charging loop broke")
+      console.error(e)
     })
 })
 
