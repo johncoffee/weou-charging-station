@@ -5,7 +5,7 @@ const app = new Koa()
 const routes = new Map<string, Function>()
 
 const router = async (ctx:Context) => {
-  console.debug(ctx.method, ctx.request.path)
+  console.log(ctx.method, ctx.request.path)
   const fn = routes.get(ctx.request.path)
   if (fn) {
     await fn(ctx)
@@ -26,19 +26,19 @@ const base = `/typebased_WS_EVSE/EVSEWebService/Toppen_EVSE`
 routes.set(`${base}/getActiveEnergyImport`, (ctx:Context) => {
   ctx.headers['Content-Type'] = "application/xml"
   ctx.response.body = `
-    <?xml version="1.0" encoding="UTF-8" standalone="yes"?><compositeMeasurement><timestampMicros>1527503513539000</timestampMicros><timePrecision>1983</timePrecision><quality>0</quality><validity>0</validity><source>0</source><value>5.9</value></compositeMeasurement>
+    <?xml version="1.0" encoding="UTF-8" standalone="yes"?><compositeMeasurement><timestampMicros>1527503513539000</timestampMicros><timePrecision>1983</timePrecision><quality>0</quality><validity>0</validity><source>0</source><value>99.9</value></compositeMeasurement>
   `
 })
 routes.set(`${base}/getCurrentLimit`, (ctx:Context) => {
   ctx.headers['Content-Type'] = "application/xml"
   ctx.response.body = `
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?><compositeMeasurement><timestampMicros>1527503668224000</timestampMicros><timePrecision>1983</timePrecision><quality>0</quality><validity>0</validity><source>0</source><value>32.0</value></compositeMeasurement>
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?><compositeMeasurement><timestampMicros>1527503668224000</timestampMicros><timePrecision>1983</timePrecision><quality>0</quality><validity>0</validity><source>0</source><value>6.0</value></compositeMeasurement>
   `
 })
 routes.set(`${base}/getACActivePower`, (ctx:Context) => {
   ctx.headers['Content-Type'] = "application/xml"
   ctx.response.body = `
-<?xml version="1.0" encoding="UTF-8" standalone="yes"?><compositeMeasurement><timestampMicros>1527504241409000</timestampMicros><timePrecision>1983</timePrecision><quality>0</quality><validity>0</validity><source>0</source><value>0.0</value></compositeMeasurement>
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?><compositeMeasurement><timestampMicros>1527504241409000</timestampMicros><timePrecision>1983</timePrecision><quality>0</quality><validity>0</validity><source>0</source><value>42.0</value></compositeMeasurement>
   `
 })
 routes.set(`${base}/getAuthenticatedVehicle`, (ctx:Context) => {

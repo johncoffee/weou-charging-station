@@ -1,6 +1,6 @@
 import * as Koa from 'koa'
 import { Context } from 'koa'
-import { ChargingStation } from './hardware.js'
+import { ChargingState, ChargingStation } from './hardware.js'
 import { getBalanceOf, transferFrom } from './eth.js'
 import { httpRequest } from './http-request.js'
 import { URL } from 'url'
@@ -10,7 +10,7 @@ const app = new Koa()
 const routes = new Map<string, Function>()
 
 const router = async (ctx:Context) => {
-  console.debug(ctx.method, ctx.request.path, ctx.request.originalUrl)
+  console.log(ctx.method, ctx.request.path, ctx.request.originalUrl)
   const fn = routes.get(ctx.request.path)
   if (fn) {
     await fn(ctx)
@@ -62,33 +62,38 @@ routes.set('/stop', async (ctx:Context) => {
   console.assert(!!id, `missing query parameter 'id'`)
   const baseUrl = new URL(  decodeURIComponent(ctx.request.query.url) )
   const station = new ChargingStation(id, baseUrl.toString())
-  await station.stopCharge()
+  await station.setCurrentLimit(6)
 })
 
 routes.set('/status', async (ctx:Context) => {
   const id = ctx.request.query.id
   const baseUrl = new URL(  decodeURIComponent(ctx.request.query.url) )
 
-  console.assert(!!id, `missing query parameter 'id'`)
-
   const station:ChargingStation = new ChargingStation(id, baseUrl.toString())
-  const response = await station.status()
+  const chargingStagingAddress:string = ctx.request.query.id
 
-  const balance = Math.round( Math.random() * 10000) //await getBalanceOf(ctx.request.query.id)
+  const balance:number = chargingStagingAddress ? await getBalanceOf(chargingStagingAddress) : -1
+  const price:number = -1
+  const co2:number = -1
 
-  // console.debug(response)
-  const status = Object.freeze({
-    chargingId: response.chargingId,
-    kW: response.kW,
-    kWhTotal: response.kWhTotal,
-    charging: response.charging,
-    connected: response.connected,
-
-    co2: 34,
-    price: 104,
-
+  // console.log(response)
+  const results = Object.seal({
+    co2,
+    price,
     balance,
+
+    chargingId: "-1",
+    kW: -1,
+    kWhTotal: -1,
+    limit: -1,
+    lastUpdate: new Date(0),
   })
-  ctx.body = status
+
+  const state = ChargingStation.handle.get(id)
+  if (state) {
+    Object.keys(state).forEach((k:keyof ChargingState) => results[k] = state[k])
+  }
+
+  ctx.body = Object.freeze(results)
 })
 
