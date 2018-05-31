@@ -13,7 +13,7 @@ const router = async (ctx:Context) => {
     await fn(ctx)
   }
   else {
-    console.log("Didn't find handler for route: " + ctx.request.path)
+    console.log("Didn't find handler for route: " + ctx.request.method + " " + ctx.request.originalUrl)
   }
 }
 
