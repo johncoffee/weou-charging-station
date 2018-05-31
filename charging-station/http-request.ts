@@ -5,10 +5,14 @@ export function httpRequest (urlString:string, opts:RequestOptions = {}):Promise
   return new Promise((resolve, reject) => {
     const urlObj = new URL(urlString)
     let data:string = ''
-    if (opts.method) {
-      (urlObj as any).method = opts.method
-    }
-    let req = request(urlObj, res => {
+
+    opts.timeout = (opts.timeout || 5000)
+    // url
+    opts.hostname = urlObj.hostname
+    opts.port = urlObj.port
+    opts.path = `${urlObj.pathname}${urlObj.search}${urlObj.hash}`
+
+    let req = request(opts, res => {
       const result = <ParsedIncomingMessage>{
         statusCode: res.statusCode,
         headers: res.headers,
