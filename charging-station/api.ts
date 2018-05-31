@@ -1,9 +1,11 @@
 import * as Koa from 'koa'
 import { Context } from 'koa'
-import { ChargingState, ChargingStation } from './hardware.js'
+import { CableState, ChargingState, ChargingStation } from './hardware.js'
 import { getBalanceOf, transferFrom } from './eth.js'
 import { httpRequest } from './http-request.js'
 import { URL } from 'url'
+import { getCo2, getPrice } from './market.js'
+
 const cors = require('koa-cors')
 const app = new Koa()
 
@@ -47,24 +49,21 @@ routes.set('/start', async (ctx:Context) => {
   console.assert(!!chargingStagingAddress, `missing query parameter 'id'`)
   const baseUrl = new URL(  decodeURIComponent(ctx.request.query.url) )
 
-  const station = new ChargingStation(chargingStagingAddress, baseUrl.toString())
   const budget = await getBalanceOf(chargingStagingAddress)
 
-  console.log("START")
-  station.chargeBudget(200, budget) // dont await this, it will run for hours
-    .then((returnFunds) => {
-      if (returnFundsAddress && returnFunds > 1) {
-        console.log(`transfer rest to ${returnFundsAddress} ${returnFunds}`)
-        transferFrom(chargingStagingAddress, returnFundsAddress, returnFunds)
-      }
-      else {
-        console.log("Did not return " + returnFunds)
-      }
-    })
-    .catch((e) => {
-      console.log("Charging loop broke")
-      console.error(e)
-    })
+  const station = new ChargingStation(chargingStagingAddress, baseUrl.toString())
+  const state = await station.pollStatus()
+
+  if (state.cable != CableState.NO_CABLE) {
+    await station.setCharging(true)
+    console.log("STARTED charging!")
+    // const returnFunds:number = await station.chargeBudget(200, budget) // dont await this, it will run for hours
+    // if (returnFunds > 0) {
+    //   console.log(`transfer rest to ${returnFundsAddress} ${returnFunds}`)
+    //   transferFrom(chargingStagingAddress, returnFundsAddress, returnFunds)
+    //     .catch(err => console.error(err))
+    // }
+  }
 })
 
 routes.set('/stop', async (ctx:Context) => {
@@ -72,7 +71,7 @@ routes.set('/stop', async (ctx:Context) => {
   console.assert(!!id, `missing query parameter 'id'`)
   const baseUrl = new URL(  decodeURIComponent(ctx.request.query.url) )
   const station = new ChargingStation(id, baseUrl.toString())
-  await station.setCurrentLimit(6)
+  await station.setCharging(false)
 })
 
 routes.set('/status', async (ctx:Context) => {
@@ -80,11 +79,12 @@ routes.set('/status', async (ctx:Context) => {
   const baseUrl = new URL(  decodeURIComponent(ctx.request.query.url) )
 
   const station:ChargingStation = new ChargingStation(id, baseUrl.toString())
+
   const chargingStagingAddress:string = ctx.request.query.id
 
   const balance:number = chargingStagingAddress ? await getBalanceOf(chargingStagingAddress) : -1
-  const price:number = -1
-  const co2:number = -1
+  const price:number = await getPrice()
+  const co2:number = await getCo2()
 
   // console.log(response)
   const results = Object.seal({
@@ -96,13 +96,12 @@ routes.set('/status', async (ctx:Context) => {
     kW: -1,
     kWhTotal: -1,
     limit: -1,
+    cable: -1,
     lastUpdate: new Date(0),
   })
 
-  const state = ChargingStation.handle.get(id)
-  if (state) {
-    Object.keys(state).forEach((k:keyof ChargingState) => results[k] = state[k])
-  }
+  const state = await station.pollStatus()
+  Object.keys(state).forEach((k:keyof ChargingState) => results[k] = state[k])
 
   ctx.body = Object.freeze(results)
 })

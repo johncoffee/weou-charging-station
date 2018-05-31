@@ -1,13 +1,20 @@
 import { httpRequest, ParsedIncomingMessage } from './http-request.js'
-import { getValueFieldAsNumber, getValueFieldAsString } from './xml-parsing.js'
+import { getStatus, getValueFieldAsNumber, getValueFieldAsString } from './xml-parsing.js'
 import { URL } from 'url'
 
 export interface ChargingState {
   chargingId: string,
   kW: number,
   kWhTotal: number,
-  limit: number,
-  lastUpdate:Date
+  // limit: number,
+  lastUpdate:Date,
+  cable:CableState
+}
+
+export enum CableState {
+  NO_CABLE = 1,
+  READY_TO_NEGOTIATE = 2,
+  READY_TO_CHARGE = 3,
 }
 
 export class ChargingStation {
@@ -15,38 +22,49 @@ export class ChargingStation {
   readonly baseUrl:string
 
   static handle:Map<string, ChargingState> = new Map<string, ChargingState>()
-  static updateDelay = 5.6
+  static updateDelay:number = 5
 
   constructor(id: string, baseUrl:string) {
     this.id = id
     const url = new URL(baseUrl)
     url.pathname = `/typebased_WS_EVSE/EVSEWebService/Toppen_EVSE`
     this.baseUrl = url.toString()
-
-    const state:ChargingState = ChargingStation.handle.get(this.id)
-    console.log(state ? "last updated "+state.lastUpdate : "No state, refreshing...")
-    if (!state ||
-      (new Date().getTime()/1000) - state.lastUpdate.getTime()/1000 > ChargingStation.updateDelay) {
-
-      this.status( this.baseUrl)
-        .then(newState => {
-          ChargingStation.handle.set(this.id, newState)
-          console.log("newState:",ChargingStation.handle.get(this.id))
-        })
-        .catch(err => console.error(err))
-    }
-    else {
-      // console.log("Waiting...")
-    }
   }
 
-  //http://hub:8000/getvar?var=price_per_kwh
-  //http://hub:8000/getvar?var=local_co2
-  private async status(baseUrl:string):Promise<ChargingState> {
+  async pollStatus():Promise<ChargingState> {
+    let state:ChargingState = ChargingStation.handle.get(this.id)
+
+    let updatedSecondsAgo:number = ChargingStation.updateDelay + 1
+    console.log(state ? `last updated ${updatedSecondsAgo} s ago` : "No state, refreshing...")
+    while (!state || updatedSecondsAgo > ChargingStation.updateDelay) {
+      try {
+        const newState = await ChargingStation.fetchStatus( this.baseUrl)
+
+        updatedSecondsAgo = (state) ? new Date().getTime()/1000 - state.lastUpdate.getTime()/1000 : ChargingStation.updateDelay
+
+        // validate state
+        console.assert(false == Number.isNaN(newState.kW ) && newState.kW >= 0, `bad kW ${newState.kW}`)
+        console.assert(false == Number.isNaN(newState.kWhTotal) && newState.kWhTotal >= 0, `bad kWhTotal ${newState.kWhTotal}`)
+        console.assert(!!CableState[newState.cable], `bad CableState ${newState.cable}`)
+        ChargingStation.handle.set(this.id, newState)
+        state = newState
+      }
+      catch (e) {
+        console.error(e)
+        console.log("Failed updating state, retrying in 2 sec...")
+        await wait(2)
+      }
+      console.log("newState:",ChargingStation.handle.get(this.id))
+    }
+    return state
+  }
+
+  static async fetchStatus(baseUrl:string):Promise<ChargingState> {
     const results:ParsedIncomingMessage[] = await Promise.all([
       httpRequest(`${baseUrl}/getActiveEnergyImport`),
       httpRequest(`${baseUrl}/getACActivePower`),
-      httpRequest(`${baseUrl}/getCurrentLimit`),
+      httpRequest(`${baseUrl}/getCurrentVehicleState`),
+      // httpRequest(`${baseUrl}/getCurrentLimit`),
       // httpRequest(`${this.baseUrl}/getAuthenticatedVehicle`),
     ])
 
@@ -54,33 +72,24 @@ export class ChargingStation {
     if (failed) {
       throw new Error('HTTP ' + failed.statusCode)
     }
-
-    const [kWhTotal, kW, limit] = results
-      .map(response => getValueFieldAsNumber(response.body))
-
-    console.assert(false == Number.isNaN( kW ) && kW >= 0, `bad kW ${kW}`)
-    console.assert(false == Number.isNaN( kWhTotal) && kWhTotal >= 0, `bad kWhTotal ${kWhTotal}`)
-    console.assert(false == Number.isNaN( limit) && limit >= 0, `bad limit ${limit}`)
+    const kWhTotal:number = getValueFieldAsNumber(results[0].body)
+    const kW:number = getValueFieldAsNumber(results[1].body)
+    const cable:CableState = parseInt(getStatus(results[2].body), 10)
 
     return Object.freeze(<ChargingState>{
       kW,
       kWhTotal,
-      limit,
+      cable,
       lastUpdate: new Date(),
       chargingId: "-1",
     })
   }
 
   async chargeBudget (price_pr_kWh:number, budget:number):Promise<number> {
-
-    const chargingStationBaseUrl = new URL(this.baseUrl)
-    chargingStationBaseUrl.pathname += `/setCurrentLimit/32`
-    const startRes = await httpRequest(chargingStationBaseUrl.toString(), {method: 'PUT'})
-    console.assert(startRes.statusCode < 300, `Should have started (${startRes.statusCode} ${startRes.statusMessage})`)
-
     const maxChargeCycle = 5 // seconds
     let chargeCycle:number = maxChargeCycle
 
+    await this.pollStatus()
     const stateInitial = ChargingStation.handle.get(this.id)
     let start_Mj:number =  stateInitial.kWhTotal/3.6
     // 1kWh = 3.6 Mj
@@ -88,38 +97,33 @@ export class ChargingStation {
 
     while (chargeCycle > 0 && chargeCycle < 60 * 60 * 12) {
       const state = ChargingStation.handle.get(this.id)
-      const wattage_MW:number = state.kW/1000 // = 0.0077 // Mj/s
+      const wattage_MW = state.kW/1000 // = 0.0077 // Mj/s
       if (state.kW > 1) { // margin for charger own usage or other possible weird effects
         // find time
         const spent_Mj = state.kWhTotal/3.6 - start_Mj
         start_Mj = state.kWhTotal/3.6
         const cents_spent = spent_Mj * price_pr_Mj
-        console.log(`Subtract ${cents_spent}`)
+        console.log(`Subtract ${cents_spent} budget ${budget}`)
         budget -= cents_spent
       }
 
       const secondsLeft = calcSeconds(budget, wattage_MW, price_pr_Mj)
+      console.log(`Terminated at budget ${budget}`)
       console.log(`With wattage ${wattage_MW} and price ${price_pr_Mj} there's ${secondsLeft} s left`)
       chargeCycle = Math.min(maxChargeCycle, secondsLeft)
-      await wait(chargeCycle)
+
+      if (chargeCycle > 0) {
+        await Promise.all([wait(chargeCycle), this.pollStatus()])
+      }
     }
 
     return budget
   }
 
-  async setCurrentLimit (limit:number) {
-    console.assert(limit > 0 && limit <= 32, `Number should be 0-32, ${limit} given`)
-    try {
-      const url = new URL(this.baseUrl)
-      url.pathname += `setCurrentLimit/${limit}`
-      await httpRequest(url.toString(), {
-        method: 'PUT'
-      })
-    }
-    catch (e) {
-      console.error("Failed stopCharge")
-      console.error(e)
-    }
+  async setCharging (state:boolean = true) {
+    const url = new URL(this.baseUrl)
+    url.pathname += `enableCharging/${state}`
+    await httpRequest(url.toString(), {method: 'PUT'})
   }
 }
 

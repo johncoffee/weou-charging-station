@@ -46,3 +46,11 @@ export function getValueFieldAsString(xml:string):string {
   const value:string = $('compositeLong value').text()
   return value
 }
+
+export function getStatus(xml:string):string {
+  const $ = cheerio.load(xml, {
+    xmlMode: true
+  })
+  const value:string = $('status status').text()
+  return value
+}
