@@ -34,7 +34,7 @@ app.listen((process.env.PORT || 3000),  async() => {
   console.log("App listening on " + (process.env.PORT || 3000))
   if (process.argv[2] == 'test') {
     try {
-      const result = await httpRequest(`http://localhost:3000/status?id=` + '0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca&url=http://localhost:8888')
+      const result = await httpRequest(`http://localhost:8888/status?id=` + '0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca&url=http://localhost:8888', {method: "PUT"})
       console.log(result.statusCode, result.json || result.body)
     }
     catch (e) {
@@ -52,9 +52,10 @@ routes.set('/start', async (ctx:Context) => {
   const budget = await getBalanceOf(chargingStagingAddress)
 
   const station = new ChargingStation(chargingStagingAddress, baseUrl.toString())
+
   const state = await station.pollStatus()
 
-  if (state.cable != CableState.NO_CABLE) {
+  if (state.cable !== CableState.NO_CABLE) {
     await station.setCharging(true)
     console.log("STARTED charging!")
     // const returnFunds:number = await station.chargeBudget(200, budget) // dont await this, it will run for hours
@@ -63,6 +64,10 @@ routes.set('/start', async (ctx:Context) => {
     //   transferFrom(chargingStagingAddress, returnFundsAddress, returnFunds)
     //     .catch(err => console.error(err))
     // }
+    ctx.response.status = 204
+  }
+  else {
+    ctx.response.body = {error: {message: "Not connected"}}
   }
 })
 
@@ -82,9 +87,7 @@ routes.set('/status', async (ctx:Context) => {
 
   const chargingStagingAddress:string = ctx.request.query.id
 
-  const balance:number = chargingStagingAddress ? await getBalanceOf(chargingStagingAddress) : -1
-  const price:number = await getPrice()
-  const co2:number = await getCo2()
+  const [price, co2, balance] = await Promise.all([getPrice(), getCo2(), getBalanceOf(chargingStagingAddress)])
 
   // console.log(response)
   const results = Object.seal({

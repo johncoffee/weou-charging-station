@@ -43,9 +43,10 @@ export class ChargingStation {
         updatedSecondsAgo = (state) ? new Date().getTime()/1000 - state.lastUpdate.getTime()/1000 : ChargingStation.updateDelay
 
         // validate state
-        console.assert(false == Number.isNaN(newState.kW ) && newState.kW >= 0, `bad kW ${newState.kW}`)
-        console.assert(false == Number.isNaN(newState.kWhTotal) && newState.kWhTotal >= 0, `bad kWhTotal ${newState.kWhTotal}`)
+        console.assert(!Number.isNaN(newState.kW ), `bad kW ${newState.kW}`)
+        console.assert(!Number.isNaN(newState.kWhTotal) && newState.kWhTotal >= 0, `bad kWhTotal ${newState.kWhTotal}`)
         console.assert(!!CableState[newState.cable], `bad CableState ${newState.cable}`)
+
         ChargingStation.handle.set(this.id, newState)
         state = newState
       }
@@ -122,7 +123,7 @@ export class ChargingStation {
 
   async setCharging (state:boolean = true) {
     const url = new URL(this.baseUrl)
-    url.pathname += `enableCharging/${state}`
+    url.pathname += `/enableCharging/${state}`
     await httpRequest(url.toString(), {method: 'PUT'})
   }
 }
