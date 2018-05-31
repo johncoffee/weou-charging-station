@@ -22,6 +22,21 @@ async function poll (delay:number = 1) {
   }
 }
 
+async function onStartClick (evt:Event)  {
+  const startBtn = evt.target as HTMLButtonElement
+  startBtn.disabled = true
+  try {
+    await doRequest('start')
+    await poll(0)
+  }
+  catch (e) {
+    console.error(e)
+  }
+  finally {
+    startBtn.disabled = false
+  }
+}
+
 export function init() {
 
   const id = getQueryVariable('id')
@@ -47,27 +62,10 @@ export function init() {
     kWhTotal: -1,
   })
 
-  document.querySelector('.charging-controls__start').addEventListener('click', async (evt) => {
-    const startBtn = evt.target as HTMLButtonElement
-    startBtn.disabled = true
-    try {
-      await doRequest('start')
-      await poll(0)
-    }
-    catch (e) {
-      console.error(e)
-    }
-    finally {
-      startBtn.disabled = false
-    }
-  })
-  // document.querySelector('.charging-controls__stop').addEventListener('click', async (evt) => {
-  //   const btn = (evt.target as HTMLButtonElement)
-  //   btn.disabled = true
-  //   await doRequest('stop')
-  //   await poll(0)
-  //   btn.disabled = false
-  // })
+  // paranoia
+  document.querySelector('.charging-controls__start').removeEventListener('click', onStartClick)
+  document.querySelector('.charging-controls__start').addEventListener('click', onStartClick)
+
   poll(1.5)
 }
 
@@ -105,7 +103,7 @@ function update (state:State) {
   </div>
     
   <p class="margin-1"></p> 
-  <p><button class="button expanded large primary charging-controls__start ${state.kW == 0 ? 'hide' : ''}">START</button></p>
+  <p><button class="button expanded large primary charging-controls__start">START</button></p>
 `
   render(template,   document.querySelector('charging-status'))
 }
