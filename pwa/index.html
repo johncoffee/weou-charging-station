@@ -28,7 +28,7 @@
                 <charging-status></charging-status>
             </div>
 
-            <form id=debugFields class="cell small-12">
+            <form id=debugFields class="cell small-12 hide">
                 <div class="grid-x grid-margin-x">
                     <div class="large-6 cell">
                         <label>
@@ -64,11 +64,5 @@
         </div>
     </div>
 </div>
-<script>
-    if (location.search.split('?')[1]!='debug'){
-        document.getElementById('debugFields').classList.toggle('hide');
-    }
-
-</script>
 </body>
 </html>

@@ -1,7 +1,11 @@
-import { init as statusInit } from './status.js'
+import { getQueryVariable, init as statusInit } from './status.js'
 
 export function init() {
   statusInit()
+
+  if (getQueryVariable('debug')) {
+    document.getElementById('debugFields').classList.remove('hide')
+  }
 }
 export async function doRequest (method: "start"|"status"|"stop") {
   const baseUrl = new URL(getValue('[name=charging-station-backend]'))
