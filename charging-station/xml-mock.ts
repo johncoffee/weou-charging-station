@@ -1,5 +1,7 @@
 import * as Koa from 'koa'
 import { Context } from 'koa'
+import { CableState } from './hardware.js'
+
 const app = new Koa()
 
 const routes = new Map<string, Function>()
@@ -23,6 +25,13 @@ app.listen((process.env.PORT || 8888), () => {
 
 const base = `/typebased_WS_EVSE/EVSEWebService/Toppen_EVSE`
 
+routes.set(`${base}/getCurrentVehicleState`, (ctx:Context) => {
+  ctx.headers['Content-Type'] = "application/xml"
+  const val:CableState = CableState.NO_CABLE
+  ctx.response.body = `
+  <?xml version="1.0" encoding="UTF-8" standalone="yes"?><evState><status><timestampMicros>1527777152065000</timestampMicros><timePrecision>1983</timePrecision><quality>0</quality><validity>0</validity><source>0</source><status>${val}</status></status></evState>
+   `
+})
 routes.set(`${base}/getActiveEnergyImport`, (ctx:Context) => {
   ctx.headers['Content-Type'] = "application/xml"
   const _total = new Date().getTime()/200000
