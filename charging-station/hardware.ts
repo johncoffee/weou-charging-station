@@ -32,11 +32,12 @@ export class ChargingStation {
   }
 
   async pollStatus():Promise<ChargingState> {
-    let state:ChargingState = ChargingStation.handle.get(this.id)
+    let state:ChargingState|undefined = ChargingStation.handle.get(this.id)
 
     let updatedSecondsAgo:number = ChargingStation.updateDelay + 1
     console.log(state ? `last updated ${updatedSecondsAgo} s ago` : "No state, refreshing...")
-    while (!state || updatedSecondsAgo > ChargingStation.updateDelay) {
+    let retries:number = 3
+    while (!state && retries > 0 && updatedSecondsAgo > ChargingStation.updateDelay) {
       try {
         const newState = await ChargingStation.fetchStatus( this.baseUrl)
 
@@ -45,19 +46,24 @@ export class ChargingStation {
         // validate state
         console.assert(!Number.isNaN(newState.kW ), `bad kW ${newState.kW}`)
         console.assert(!Number.isNaN(newState.kWhTotal) && newState.kWhTotal >= 0, `bad kWhTotal ${newState.kWhTotal}`)
-        console.assert(!!CableState[newState.cable], `bad CableState ${newState.cable}`)
 
         ChargingStation.handle.set(this.id, newState)
         state = newState
       }
       catch (e) {
         console.error(e)
-        console.log("Failed updating state, retrying in 2 sec...")
-        await wait(2)
+        retries -= 1
+        console.log("Failed updating state ("+retries+" retries left), retrying in 5 sec...")
+        await wait(5)
       }
       console.log("newState:",ChargingStation.handle.get(this.id))
     }
-    return state
+    if (!state) {
+      throw new Error("Failed to get state after 3 retries")
+    }
+    else {
+      return state
+    }
   }
 
   static async fetchStatus(baseUrl:string):Promise<ChargingState> {

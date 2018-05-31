@@ -55,15 +55,15 @@ routes.set('/start', async (ctx:Context) => {
 
   const state = await station.pollStatus()
 
-  if (state.cable !== CableState.NO_CABLE) {
+  if (state.cable !== CableState.NO_CABLE && budget > 0) {
     await station.setCharging(true)
     console.log("STARTED charging!")
-    // const returnFunds:number = await station.chargeBudget(200, budget) // dont await this, it will run for hours
-    // if (returnFunds > 0) {
-    //   console.log(`transfer rest to ${returnFundsAddress} ${returnFunds}`)
-    //   transferFrom(chargingStagingAddress, returnFundsAddress, returnFunds)
-    //     .catch(err => console.error(err))
-    // }
+    const returnFunds:number = await station.chargeBudget(200, budget) // dont await this, it will run for hours
+    if (returnFunds > 0) {
+      console.log(`transfer rest to ${returnFundsAddress} ${returnFunds}`)
+      transferFrom(chargingStagingAddress, returnFundsAddress, returnFunds)
+        .catch(err => console.error(err))
+    }
     ctx.response.status = 204
   }
   else {
