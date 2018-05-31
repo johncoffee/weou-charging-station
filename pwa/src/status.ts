@@ -42,6 +42,7 @@ export function init() {
     co2: -1,
     price: -1,
     balance: -1,
+    cable: -1,
     kW: -1,
     kWhTotal: -1,
   })
@@ -85,9 +86,13 @@ function update (state:State) {
   const template = html`
 
   <div class="grid-x grid-margin-x grid-padding-x grid-margin-y grid-padding-y coloured-cells">
-    <div class="small-12 cell">
+    <div class="small-6 cell">
        <h5 class="margin-0 subheader">Wattage</h5>
        <h2 class="text-center margin-0">${state.kW} <span class="subheader">kW</span></h2>     
+    </div>
+    <div class="small-6 cell">
+       <h5 class="margin-0 subheader">Cable</h5>
+       <h2 class="text-center margin-0">${state.cable == 1 ? 'unplugged' : "connected"}</h2>     
     </div>    
     <div class="small-6 cell">
       <h5 class="margin-0 subheader">Price</h5>
@@ -111,6 +116,7 @@ interface State {
   balance:number
   kW:number
   kWhTotal:number
+  cable:number
 }
 
 function wait (delay:number) {
