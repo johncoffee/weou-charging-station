@@ -64,6 +64,10 @@ routes.set('/start', async (ctx:Context) => {
     //   transferFrom(chargingStagingAddress, returnFundsAddress, returnFunds)
     //     .catch(err => console.error(err))
     // }
+    ctx.response.status = 204
+  }
+  else {
+    ctx.response.body = {error: {message: "Not connected"}}
   }
 })
 
@@ -83,9 +87,7 @@ routes.set('/status', async (ctx:Context) => {
 
   const chargingStagingAddress:string = ctx.request.query.id
 
-  const balance:number = chargingStagingAddress ? await getBalanceOf(chargingStagingAddress) : -1
-  const price:number = await getPrice()
-  const co2:number = await getCo2()
+  const [price, co2, balance] = await Promise.all([getPrice(), getCo2(), getBalanceOf(chargingStagingAddress)])
 
   // console.log(response)
   const results = Object.seal({
