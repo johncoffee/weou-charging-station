@@ -123,7 +123,7 @@ export class ChargingStation {
 
   async setCharging (state:boolean = true) {
     const url = new URL(this.baseUrl)
-    url.pathname += `enableCharging/${state}`
+    url.pathname += `/enableCharging/${state}`
     await httpRequest(url.toString(), {method: 'PUT'})
   }
 }
