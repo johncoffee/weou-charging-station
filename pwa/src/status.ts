@@ -8,7 +8,7 @@ async function poll (delay:number = 1) {
   }
   catch (e) {
     console.error(e)
-    delay = Math.min(30, delay + 5)
+    delay = Math.min(5, delay + 5)
     console.log(`Trouble getting status, waiting ${delay} s before retrying`)
   }
 
