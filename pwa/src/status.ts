@@ -92,7 +92,7 @@ function update (state:State) {
     </div>
     <div class="small-6 cell">
        <h5 class="margin-0 subheader">Cable</h5>
-       <h2 class="text-center margin-0">${state.cable == 1 ? 'unplugged' : "connected"}</h2>     
+       <h2 class="text-center margin-0">${state.cable == -1 ? "-1" : state.cable == 1 ? 'unplugged' : "connected"}</h2>     
     </div>    
     <div class="small-6 cell">
       <h5 class="margin-0 subheader">Price</h5>
