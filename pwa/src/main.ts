@@ -15,7 +15,7 @@ export async function doRequest (method: "start"|"status"|"stop") {
   const res = await fetchWrapper(urlStateful, {
     mode: 'cors',
     cache: 'no-cache',
-  }, 35)
+  }, 60)
   let json = {}
   if (res.headers.has('content-type') && res.headers.get('content-type').indexOf('application/json') > -1) {
     json = await res.json()
