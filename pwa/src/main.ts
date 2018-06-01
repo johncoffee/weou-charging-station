@@ -1,4 +1,5 @@
 import { getQueryVariable, init as statusInit } from './status.js'
+import fetch from "./fetch-timeout.js"
 
 export function init() {
   statusInit()
@@ -14,7 +15,7 @@ export async function doRequest (method: "start"|"status"|"stop") {
   const res = await fetch(urlStateful, {
     mode: 'cors',
     cache: 'no-cache',
-  })
+  }, 5)
   let json = {}
   if (res.headers.has('content-type') && res.headers.get('content-type').indexOf('application/json') > -1) {
     json = await res.json()
