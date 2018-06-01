@@ -1,6 +1,6 @@
 import * as Koa from 'koa'
 import { Context } from 'koa'
-import { CableState, ChargingState, ChargingStation } from './hardware.js'
+import { CableState, ChargingState, ChargingStation, wait } from './hardware.js'
 import { getBalanceOf, transferFrom } from './eth.js'
 import { httpRequest } from './http-request.js'
 import { URL } from 'url'
@@ -43,12 +43,21 @@ app.listen((process.env.PORT || 3000),  async() => {
   }
 })
 
-const _handle = setInterval(() => {
+
+async function updateHandler () {
   const station = new ChargingStation('0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca', 'http://10.170.111.0:8088')
   // const station = new ChargingStation('0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca', 'http://localhost:8888')
-  station.pollStatus()
-    .catch((e) => console.error(e))
-}, 5000)
+  try {
+    await station.pollStatus()
+  }
+  catch (e) {
+    console.error(e)
+  }
+  await wait(5)
+  updateHandler()
+}
+
+updateHandler()
 
 routes.set('/start', async (ctx:Context) => {
   const chargingStagingAddress:string = ctx.request.query.id

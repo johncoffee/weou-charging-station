@@ -147,6 +147,6 @@ function calcSeconds(budget_cents:number, wattage_Mjs:number, cents_pr_Mj:number
   return time_s
 }
 
-function wait (delay:number):Promise<void> {
+export function wait (delay:number):Promise<void> {
   return new Promise(resolve => setTimeout(() => resolve(), delay * 1000))
 }
