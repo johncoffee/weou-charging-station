@@ -22,13 +22,7 @@ export function getAddress () {
   return owner.address
 }
 
-let _balance:number = -1
-
 export async function getBalanceOf(target:string):Promise<number> {
-  if (_balance > -1) {
-    return _balance
-  }
-
   const contract = new web3.eth.Contract(contractArtifact.abi, contractAddress, {
     gasPrice
   })
@@ -36,7 +30,6 @@ export async function getBalanceOf(target:string):Promise<number> {
   const decimals = await contract.methods.decimals().call()
   const res = await contract.methods[balanceOf](target).call()
   const balance = res / decimals ** 10
-  _balance = balance
   return balance
 }
 
