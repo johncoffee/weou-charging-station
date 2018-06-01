@@ -45,8 +45,8 @@ app.listen((process.env.PORT || 3000),  async() => {
 
 
 async function updateHandler () {
-  // const station = new ChargingStation('0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca', 'http://10.170.111.0:8088')
-  const station = new ChargingStation('0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca', 'http://localhost:8888')
+  const station = new ChargingStation('0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca', 'http://10.170.143.204:8080')
+  // const station = new ChargingStation('0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca', 'http://localhost:8888')
   let state:ChargingState = ChargingStation.handle.get(station.id)
   let newState:ChargingState
   try {
