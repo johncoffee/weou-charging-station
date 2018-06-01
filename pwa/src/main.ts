@@ -1,5 +1,5 @@
 import { getQueryVariable, init as statusInit } from './status.js'
-import fetch from "./fetch-timeout.js"
+import fetchWrapper from './fetch-timeout.js'
 
 export function init() {
   statusInit()
@@ -12,7 +12,7 @@ export async function doRequest (method: "start"|"status"|"stop") {
   const baseUrl = new URL(getValue('[name=charging-station-backend]'))
   baseUrl.pathname += method
   let urlStateful = baseUrl + `?` + getUrlParameters()
-  const res = await fetch(urlStateful, {
+  const res = await fetchWrapper(urlStateful, {
     mode: 'cors',
     cache: 'no-cache',
   }, 5)
