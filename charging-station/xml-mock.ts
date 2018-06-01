@@ -1,6 +1,6 @@
 import * as Koa from 'koa'
 import { Context } from 'koa'
-import { CableState } from './hardware.js'
+import { CableState, wait } from './hardware.js'
 
 const app = new Koa()
 
@@ -25,39 +25,45 @@ app.listen((process.env.PORT || 8888), () => {
 
 const base = `/typebased_WS_EVSE/EVSEWebService/Toppen_EVSE`
 
-routes.set(`${base}/getCurrentVehicleState`, (ctx:Context) => {
+routes.set(`${base}/getCurrentVehicleState`, async (ctx:Context) => {
+  await wait(Math.random() * 0.5)
   ctx.headers['Content-Type'] = "application/xml"
   const val:CableState = CableState.NO_CABLE
   ctx.response.body = `
   <?xml version="1.0" encoding="UTF-8" standalone="yes"?><evState><status><timestampMicros>1527777152065000</timestampMicros><timePrecision>1983</timePrecision><quality>0</quality><validity>0</validity><source>0</source><status>${val}</status></status></evState>
    `
 })
-routes.set(`${base}/getActiveEnergyImport`, (ctx:Context) => {
+routes.set(`${base}/getActiveEnergyImport`, async (ctx:Context) => {
+  await wait(Math.random() * 0.5)
   ctx.headers['Content-Type'] = "application/xml"
   const _total = new Date().getTime()/200000
   ctx.response.body = `
     <?xml version="1.0" encoding="UTF-8" standalone="yes"?><compositeMeasurement><timestampMicros>1527503513539000</timestampMicros><timePrecision>1983</timePrecision><quality>0</quality><validity>0</validity><source>0</source><value>${_total}</value></compositeMeasurement>
   `
 })
-routes.set(`${base}/getCurrentLimit`, (ctx:Context) => {
+routes.set(`${base}/getCurrentLimit`, async (ctx:Context) => {
+  await wait(Math.random() * 0.5)
   ctx.headers['Content-Type'] = "application/xml"
   ctx.response.body = `
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?><compositeMeasurement><timestampMicros>1527503668224000</timestampMicros><timePrecision>1983</timePrecision><quality>0</quality><validity>0</validity><source>0</source><value>12.0</value></compositeMeasurement>
   `
 })
-routes.set(`${base}/getACActivePower`, (ctx:Context) => {
+routes.set(`${base}/getACActivePower`, async (ctx:Context) => {
+  await wait(Math.random() * 0.5)
   ctx.headers['Content-Type'] = "application/xml"
   ctx.response.body = `
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?><compositeMeasurement><timestampMicros>1527504241409000</timestampMicros><timePrecision>1983</timePrecision><quality>0</quality><validity>0</validity><source>0</source><value>32.0</value></compositeMeasurement>
   `
 })
-routes.set(`${base}/getAuthenticatedVehicle`, (ctx:Context) => {
+routes.set(`${base}/getAuthenticatedVehicle`, async (ctx:Context) => {
+  await wait(Math.random() * 0.5)
   ctx.headers['Content-Type'] = "application/xml"
   ctx.response.body = `
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?><compositeLong><timestampMicros>0</timestampMicros><timePrecision>16</timePrecision><quality>0</quality><validity>2</validity><source>2</source><value>-9223372036854775808</value></compositeLong>
   `
 })
 
-routes.set(`${base}/setCurrentLimit/32`, (ctx:Context) => {
+routes.set(`${base}/setCurrentLimit/32`, async (ctx:Context) => {
+  await wait(Math.random() * 0.5)
   ctx.response.body = `ok`
 })
