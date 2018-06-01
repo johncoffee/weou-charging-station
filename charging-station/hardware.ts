@@ -29,19 +29,28 @@ export class ChargingStation {
     const url = new URL(baseUrl)
     url.pathname = `/typebased_WS_EVSE/EVSEWebService/Toppen_EVSE`
     this.baseUrl = url.toString()
+
+    if (!ChargingStation.handle.has(this.id)) {
+      ChargingStation.handle.set(this.id, Object.freeze(<ChargingState>{
+        kW: -1,
+        kWhTotal: -1,
+        cable: -1,
+        lastUpdate: new Date(0),
+        chargingId: "-1",
+      }))
+    }
   }
 
   async pollStatus():Promise<ChargingState> {
-    let state:ChargingState|undefined = ChargingStation.handle.get(this.id)
+    let state:ChargingState = ChargingStation.handle.get(this.id)
 
-    let updatedSecondsAgo:number = ChargingStation.updateDelay + 1
+    let updatedSecondsAgo:number = new Date().getTime()/1000 - state.lastUpdate.getTime()/1000
     console.log(state ? `last updated ${updatedSecondsAgo} s ago` : "No state, refreshing...")
     let retries:number = 3
-    while (!state && retries > 0 && updatedSecondsAgo > ChargingStation.updateDelay) {
+    while (retries > 0 && updatedSecondsAgo > ChargingStation.updateDelay) {
       try {
         const newState = await ChargingStation.fetchStatus( this.baseUrl)
-
-        updatedSecondsAgo = (state) ? new Date().getTime()/1000 - state.lastUpdate.getTime()/1000 : ChargingStation.updateDelay
+        updatedSecondsAgo = (newState) ? new Date().getTime()/1000 - state.lastUpdate.getTime()/1000 : ChargingStation.updateDelay
 
         // validate state
         console.assert(!Number.isNaN(newState.kW ), `bad kW ${newState.kW}`)
@@ -58,12 +67,8 @@ export class ChargingStation {
       }
       console.log("newState:",ChargingStation.handle.get(this.id))
     }
-    if (!state) {
-      throw new Error("Failed to get state after 3 retries")
-    }
-    else {
-      return state
-    }
+
+    return state
   }
 
   static async fetchStatus(baseUrl:string):Promise<ChargingState> {
