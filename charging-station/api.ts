@@ -34,7 +34,7 @@ app.listen((process.env.PORT || 3000),  async() => {
   console.log("App listening on " + (process.env.PORT || 3000))
   if (process.argv[2] == 'test') {
     try {
-      const result = await httpRequest(`http://localhost:8888/status?id=` + '0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca&url=http://localhost:8888', {method: "PUT"})
+      const result = await httpRequest(`http://localhost:8888/status?id=` + '0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca&url=http://localhost:8888', {method: "GET"})
       console.log(result.statusCode, result.json || result.body)
     }
     catch (e) {
@@ -42,6 +42,13 @@ app.listen((process.env.PORT || 3000),  async() => {
     }
   }
 })
+
+const _handle = setInterval(() => {
+  const station = new ChargingStation('0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca', 'http://10.170.111.0:8088')
+  // const station = new ChargingStation('0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca', 'http://localhost:8888')
+  station.pollStatus()
+    .catch((e) => console.error(e))
+}, 5000)
 
 routes.set('/start', async (ctx:Context) => {
   const chargingStagingAddress:string = ctx.request.query.id
@@ -52,8 +59,7 @@ routes.set('/start', async (ctx:Context) => {
   const budget = await getBalanceOf(chargingStagingAddress)
 
   const station = new ChargingStation(chargingStagingAddress, baseUrl.toString())
-
-  const state = await station.pollStatus()
+  const state = ChargingStation.handle.get(station.id)
 
   if (state.cable !== CableState.NO_CABLE && budget > 0) {
     await station.setCharging(true)
@@ -103,7 +109,7 @@ routes.set('/status', async (ctx:Context) => {
     lastUpdate: new Date(0),
   })
 
-  const state = await station.pollStatus()
+  const state:ChargingState = ChargingStation.handle.get(station.id)
   Object.keys(state).forEach((k:keyof ChargingState) => results[k] = state[k])
 
   ctx.body = Object.freeze(results)
