@@ -1,5 +1,5 @@
 import { httpRequest, ParsedIncomingMessage } from './http-request.js'
-import { getStatus, getValueFieldAsNumber, getValueFieldAsString } from './xml-parsing.js'
+import { getStatus, getValueFieldAsNumber } from './xml-parsing.js'
 import { URL } from 'url'
 
 export interface ChargingState {
@@ -12,6 +12,7 @@ export interface ChargingState {
 }
 
 export enum CableState {
+  INVALID = -1,
   NO_CABLE = 1,
   READY_TO_NEGOTIATE = 2,
   READY_TO_CHARGE = 3,
@@ -50,7 +51,6 @@ export class ChargingStation {
     while (retries > 0 && updatedSecondsAgo > ChargingStation.updateDelay) {
       try {
         const newState = await ChargingStation.fetchStatus( this.baseUrl)
-        updatedSecondsAgo = (newState) ? new Date().getTime()/1000 - state.lastUpdate.getTime()/1000 : ChargingStation.updateDelay
 
         // validate state
         console.assert(!Number.isNaN(newState.kW ), `bad kW ${newState.kW}`)
@@ -58,6 +58,8 @@ export class ChargingStation {
 
         ChargingStation.handle.set(this.id, newState)
         state = newState
+        retries = 0
+        console.log("newState " , ChargingStation.handle.get(this.id).cable)
       }
       catch (e) {
         console.error(e)
@@ -65,7 +67,6 @@ export class ChargingStation {
         console.log("Failed updating state ("+retries+" retries left), retrying in 5 sec...")
         await wait(5)
       }
-      console.log("newState:",ChargingStation.handle.get(this.id))
     }
 
     return state
@@ -97,56 +98,67 @@ export class ChargingStation {
     })
   }
 
-  async chargeBudget (price_pr_kWh:number, budget:number):Promise<number> {
-    const maxChargeCycle = 5 // seconds
-    let chargeCycle:number = maxChargeCycle
-
-    await this.pollStatus()
-    const stateInitial = ChargingStation.handle.get(this.id)
-    let start_Mj:number =  stateInitial.kWhTotal/3.6
-    // 1kWh = 3.6 Mj
-    const price_pr_Mj = price_pr_kWh/3.6 // 200 cents/3.6Mj = 55.5556 cents / 1 Mj
-
-    while (chargeCycle > 0 && chargeCycle < 60 * 60 * 12) {
-      const state = ChargingStation.handle.get(this.id)
-      const wattage_MW = state.kW/1000 // = 0.0077 // Mj/s
-      if (state.kW > 1) { // margin for charger own usage or other possible weird effects
-        // find time
-        const spent_Mj = state.kWhTotal/3.6 - start_Mj
-        start_Mj = state.kWhTotal/3.6
-        const cents_spent = spent_Mj * price_pr_Mj
-        console.log(`Subtract ${cents_spent} budget ${budget}`)
-        budget -= cents_spent
-      }
-
-      const secondsLeft = calcSeconds(budget, wattage_MW, price_pr_Mj)
-      console.log(`Terminated at budget ${budget}`)
-      console.log(`With wattage ${wattage_MW} and price ${price_pr_Mj} there's ${secondsLeft} s left`)
-      chargeCycle = Math.min(maxChargeCycle, secondsLeft)
-
-      if (chargeCycle > 0) {
-        await Promise.all([wait(chargeCycle), this.pollStatus()])
-      }
-    }
-
-    return budget
-  }
-
   async setCharging (state:boolean = true) {
     const url = new URL(this.baseUrl)
     url.pathname += `/enableCharging/${state}`
     await httpRequest(url.toString(), {method: 'PUT'})
   }
-}
 
-function calcSeconds(budget_cents:number, wattage_Mjs:number, cents_pr_Mj:number):number {
-  // budget 2 Mj = 400 cents / 200 cents/Mj
-  // time 259 s = 2 Mj / 0.0077 Mj/s
-  const budget_Mj = budget_cents / cents_pr_Mj
-  const time_s = budget_Mj / wattage_Mjs
-  return time_s
+  static idIp = new Map<string, string>()
 }
 
 export function wait (delay:number):Promise<void> {
   return new Promise(resolve => setTimeout(() => resolve(), delay * 1000))
+}
+
+export type EventState = {
+  chargeStartState?: Readonly<ChargingState>
+  onReadyFired?: boolean
+}
+
+export type Hooks = {
+  onDisconnect: {(id:string, start:ChargingState, end:ChargingState):void}
+  onReady: {():void}
+}
+
+export async function updateHandler (id:string, events:Readonly<EventState>, hooks:Hooks) {
+  // const station = new ChargingStation('0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca', 'http://10.170.143.204:8080')
+  // const station = new ChargingStation('0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca', 'http://localhost:8888')
+  const station = new ChargingStation(id , ChargingStation.idIp.get(id))
+  let state:ChargingState = ChargingStation.handle.get(station.id)
+  let newState:ChargingState
+  try {
+    newState = await station.pollStatus()
+  }
+  catch (e) {
+    console.error(e)
+  }
+
+  let chargeStartState:ChargingState = events.chargeStartState
+
+  // first run event
+  let onReadyFired = events.onReadyFired
+  if (!onReadyFired && newState) {
+    hooks.onReady()
+    onReadyFired = true
+  }
+
+  if (newState.cable !== state.cable && state.cable !== CableState.INVALID) {
+    console.log(`Cable change ${state.cable} (${CableState[state.cable]}) -> ${newState.cable} (${CableState[newState.cable]})`)
+    switch (newState.cable) {
+      case CableState.READY_TO_CHARGE:
+      case CableState.READY_TO_NEGOTIATE:
+        if (!chargeStartState) {
+          chargeStartState = newState
+        }
+        break
+      case CableState.NO_CABLE:
+        chargeStartState = null
+        hooks.onDisconnect(station.id, events.chargeStartState, newState)
+        break
+    }
+  }
+
+  await wait(5)
+  updateHandler( id, Object.freeze({chargeStartState, onReadyFired}), hooks)
 }

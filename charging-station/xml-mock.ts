@@ -1,6 +1,6 @@
 import * as Koa from 'koa'
 import { Context } from 'koa'
-import { CableState, wait } from './hardware.js'
+import { CableState, wait } from './charging-station.js'
 
 const app = new Koa()
 

@@ -10,49 +10,56 @@ const rpcUrl = `https://rinkeby.infura.io/${API_KEY}`
 
 const contractArtifact = require('./abi.json')
 const balanceOf = 'balanceOf'
-const mintAbi = contractArtifact.abi.find((method:any) => method.name === balanceOf)
-console.assert(!!mintAbi, `Should've found ${balanceOf} in `, contractArtifact.abi)
 
 const web3:Web3C = new Web3(rpcUrl)
+const owner = web3.eth.accounts.privateKeyToAccount(privateKey)
 
-let gasPrice = web3.utils.toWei("2", 'shannon')
+let gasPrice = web3.utils.toWei("1", 'shannon')
+const contract = new web3.eth.Contract(contractArtifact.abi, contractAddress, {
+  gasPrice,
+  from: owner.address
+})
 
 export function getAddress () {
-  const owner = web3.eth.accounts.privateKeyToAccount(privateKey)
   return owner.address
 }
 
 export async function getBalanceOf(target:string):Promise<number> {
-  const contract = new web3.eth.Contract(contractArtifact.abi, contractAddress, {
-    gasPrice
-  })
-
   const decimals = await contract.methods.decimals().call()
   const res = await contract.methods[balanceOf](target).call()
   const balance = Math.floor( res / 10 ** decimals )
   return balance
 }
 
-export async function transferFrom(from:string, to:string, amount:number):Promise<any> {
-  const contract = new web3.eth.Contract(contractArtifact.abi, contractAddress, {
-    gasPrice
-  })
-  const res = await contract.methods.transferFrom(from, to, amount).call()
-  return res
+export async function transfer(to:string, amount:number):Promise<any> {
+  const decimals = await contract.methods.decimals().call()
+  amount = amount * 10 ** decimals
+  console.assert(!!contract.methods.transfer, `transfer not found in `,Object.keys(contract.methods))
+  // await (web3 as any).eth.personal.unlockAccount(owner.address as any)
+  // console.debug(3)
+  // const res = await contract.methods.transfer(to, amount).send()
+  // return res
+  console.debug(`Would have sent ${amount} from ${getAddress()} to ${to}`)
 }
 
-async function main (target:string):Promise<void> {
-  console.log(`from ${getAddress()}`)
+async function test (target:string):Promise<void> {
+  console.log(`owner ${getAddress()}`)
+  // console.log(`owners balance ${await getBalanceOf(getAddress())}`)
   console.log(`token contract address ${contractAddress}`)
-  getBalanceOf(target)
-    .then(val => console.log(val))
-}
 
-if (!module.parent) {
   try {
-    main(process.argv[2])
+    const bal = await getBalanceOf(target)
+    console.debug('balance of '+target,bal)
+    const success = await transfer(target,  100)
+    console.debug(success)
   }
   catch (e) {
     console.error(e)
   }
+  // getBalanceOf('0x6C041FB1E17Aa0e95af5b078C45c7397fe3cAA0b')
+  //   .then(val => console.log(val))
+}
+
+if (!module.parent) {
+    test(process.argv[2])
 }

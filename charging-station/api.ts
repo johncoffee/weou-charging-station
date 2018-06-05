@@ -1,13 +1,27 @@
 import * as Koa from 'koa'
 import { Context } from 'koa'
-import { CableState, ChargingState, ChargingStation, wait } from './hardware.js'
-import { getBalanceOf } from './eth.js'
+import { CableState, ChargingState, ChargingStation, updateHandler } from './charging-station'
 import { httpRequest } from './http-request.js'
 import { URL } from 'url'
 import { getCo2, getPrice } from './market.js'
+import { getBalanceOf, transfer } from './eth.js'
 
 const cors = require('koa-cors')
 const app = new Koa()
+
+// hardcoded one known stations address
+const STATION_ONE = '0xBd65990E92e07567c472e4A6a24291Bf6AefCdb9'
+ChargingStation.idIp.set(STATION_ONE, 'http://localhost:8888')
+
+!(function(){
+  // one charging station with hardcoded ID
+  updateHandler(STATION_ONE,
+    Object.freeze({})
+    , {
+      onDisconnect,
+      onReady,
+    })
+})()
 
 const routes = new Map<string, Function>()
 
@@ -28,13 +42,14 @@ app.use( cors({
   headers: ['Content-Type'],
 }))
 
-app.use( router)
+const latestTransfer = new Map<string, string>()
+latestTransfer.set(STATION_ONE, '0x51f8A5d539582EB9bF2F71F66BCC0E6B37Abb7cA')
 
 app.listen((process.env.PORT || 3000),  async() => {
   console.log("App listening on " + (process.env.PORT || 3000))
   if (process.argv[2] == 'test') {
     try {
-      const result = await httpRequest(`http://localhost:8888/status?id=` + '0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca&url=http://localhost:8888', {method: "GET"})
+      const result = await httpRequest(`http://localhost:8888/status?id=` + '0x51f8A5d539582EB9bF2F71F66BCC0E6B37Abb7cA&url=http://localhost:8888', {method: "GET"})
       console.log(result.statusCode, result.json || result.body)
     }
     catch (e) {
@@ -43,44 +58,52 @@ app.listen((process.env.PORT || 3000),  async() => {
   }
 })
 
+function onReady() {
+  console.debug('READY')
+  app.use( router)
+}
 
-async function updateHandler () {
-  const station = new ChargingStation('0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca', 'http://10.170.143.204:8080')
-  // const station = new ChargingStation('0x51f8a5d539582eb9bf2f71f66bcc0e6b37abb7ca', 'http://localhost:8888')
-  let state:ChargingState = ChargingStation.handle.get(station.id)
-  let newState:ChargingState
+async function onDisconnect(id:string, started:ChargingState, ended:ChargingState):Promise<void> {
+  // calc stuff
+  const kWh = ended.kWhTotal - started.kWhTotal
+  const [balance, price] = await Promise.all([getBalanceOf(id), getPrice()])
+  const amountToPay = price * kWh
+  const change = balance - amountToPay
+  const rounded_2decimal = Math.floor(change * 10 ** 2) / 10 ** 2
+
+  if (rounded_2decimal < 1.00) return console.log(`Bailing; returns was only ${rounded_2decimal}`)
+
+  // do payouts if possible
+  console.log(`Delta kWh on disconnect ${kWh}, total amount due ${amountToPay}, change to return ${rounded_2decimal}`)
+
+  const returnAddress = latestTransfer.get(id)
+
+  if (!returnAddress) return console.log("There was not return address set!")
+
+  if (amountToPay > balance) return  console.log("PROBLEM there was not enough balance to pay")
+
   try {
-    newState = await station.pollStatus()
+    await transfer(returnAddress, rounded_2decimal)
   }
   catch (e) {
     console.error(e)
   }
-
-  if (newState.cable !== state.cable) {
-    if (newState.cable === CableState.NO_CABLE) {
-      onDisconnect(station.id)
-    }
-  }
-
-  await wait(5)
-  updateHandler()
 }
-
-function onDisconnect(id:string) {
-  console.debug("Disconnect")
-}
-
-updateHandler()
 
 routes.set('/start', async (ctx:Context) => {
-  const chargingStagingAddress:string = ctx.request.query.id
-  const returnFundsAddress:string = ctx.request.query.return
-  console.assert(!!chargingStagingAddress, `missing query parameter 'id'`)
-  const baseUrl = new URL(  decodeURIComponent(ctx.request.query.url) )
+  const id:string = ctx.request.query.id
+  console.assert(!!id, `missing query parameter 'id'`)
 
-  const budget = await getBalanceOf(chargingStagingAddress)
+  const returnFundsTo:string = ctx.request.query.return
+  if (returnFundsTo) {
+    latestTransfer.set(id, returnFundsTo)
+  }
 
-  const station = new ChargingStation(chargingStagingAddress, baseUrl.toString())
+  const baseUrl:URL = (ctx.request.query.url) ? new URL(  decodeURIComponent(ctx.request.query.url) ) : new URL(ChargingStation.idIp.get(STATION_ONE))
+
+  const budget = await getBalanceOf(id)
+
+  const station = new ChargingStation(id, baseUrl.toString())
   const state = ChargingStation.handle.get(station.id)
 
   const isCharging = (state.kW > 0.1 && state.cable === CableState.READY_TO_CHARGE || state.cable === CableState.READY_TO_NEGOTIATE)
@@ -89,12 +112,6 @@ routes.set('/start', async (ctx:Context) => {
   if (canStart) {
     await station.setCharging(true)
     ctx.response.status = 204
-    // const start_kWh = state.kWhTotal
-    // const returnFunds:number = await station.chargeBudget(200, budget) // dont await this, it will run for hours
-    // if (returnFunds > 0) {
-    //   console.log(`transfer rest to ${returnFundsAddress} ${returnFunds}`)
-    //   transferFrom(chargingStagingAddress, returnFundsAddress, returnFunds)
-    //     .catch(err => console.error(err))
   }
   else {
     ctx.response.body = {error: {message: "Not connected"}}
@@ -104,20 +121,25 @@ routes.set('/start', async (ctx:Context) => {
 routes.set('/stop', async (ctx:Context) => {
   const id = ctx.request.query.id
   console.assert(!!id, `missing query parameter 'id'`)
-  const baseUrl = new URL(  decodeURIComponent(ctx.request.query.url) )
+
+  const baseUrl:URL = (ctx.request.query.url) ? new URL(  decodeURIComponent(ctx.request.query.url) ) : new URL(ChargingStation.idIp.get(STATION_ONE))
   const station = new ChargingStation(id, baseUrl.toString())
   await station.setCharging(false)
 })
 
 routes.set('/status', async (ctx:Context) => {
   const id = ctx.request.query.id
-  const baseUrl = new URL(  decodeURIComponent(ctx.request.query.url) )
+  console.assert(!!id, `missing query parameter 'id'`)
 
+  const baseUrl:URL = (ctx.request.query.url) ? new URL(  decodeURIComponent(ctx.request.query.url) ) : new URL(ChargingStation.idIp.get(STATION_ONE))
   const station:ChargingStation = new ChargingStation(id, baseUrl.toString())
 
-  const chargingStagingAddress:string = ctx.request.query.id
+  const returnFundsTo:string = ctx.request.query.return
+  if (returnFundsTo) {
+    latestTransfer.set(id, returnFundsTo)
+  }
 
-  const [price, co2, balance] = await Promise.all([getPrice(), getCo2(), getBalanceOf(chargingStagingAddress)])
+  const [price, co2, balance] = await Promise.all([getPrice(), getCo2(), getBalanceOf(id)])
 
   // console.log(response)
   const results = Object.seal({
