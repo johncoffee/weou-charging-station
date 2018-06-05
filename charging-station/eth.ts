@@ -29,7 +29,7 @@ export async function getBalanceOf(target:string):Promise<number> {
 
   const decimals = await contract.methods.decimals().call()
   const res = await contract.methods[balanceOf](target).call()
-  const balance = res / decimals ** 10
+  const balance = Math.floor( res / 10 ** decimals )
   return balance
 }
 
