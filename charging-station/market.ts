@@ -1,9 +1,12 @@
 import { httpRequest } from './http-request.js'
 
+const marketBaseUrl = process.env.MARKET || 'http://10.170.0.237:8090'
+console.log(`market at ${marketBaseUrl}`)
+
 export async function getPrice():Promise<number> {
   let price:number = 200
   try {
-    const res = await httpRequest('http://10.170.0.237:8090/getvar?var=price_per_kwh')
+    const res = await httpRequest(`${marketBaseUrl}/getvar?var=price_per_kwh`)
     price = parseFloat(res.body)
   }
   catch (e) {
@@ -15,7 +18,7 @@ export async function getPrice():Promise<number> {
 
 export async function getCo2():Promise<number> {
   try {
-    const res = await httpRequest('http://10.170.0.237:8090/getvar?var=local_co2')
+    const res = await httpRequest(`${marketBaseUrl}/getvar?var=local_co2`)
     const co2 = parseFloat(res.body)
     return co2
   }
