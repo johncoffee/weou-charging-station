@@ -40,7 +40,7 @@ export function httpRequest (urlString:string, opts:RequestOptions = {}):Promise
     req.on('error', err => reject(err))
     req.setTimeout( (opts.timeout) ? opts.timeout : 5000)
     req.end() // send it off!
-    console.log(`${new Date().toJSON()} ${urlObj}`)
+    // console.log(`${new Date().toJSON()} ${urlObj}`)
   })
 }
 

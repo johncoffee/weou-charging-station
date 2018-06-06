@@ -1,3 +1,9 @@
+# Shared repo for charging station frontend and backend
+
+## Running 
+
+`npm start`
+
 ## Install and compile
 
 `cd charging-station`
