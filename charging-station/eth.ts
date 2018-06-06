@@ -1,6 +1,9 @@
 import Web3C from 'web3'
-import { EncodedTransaction, TransactionObject, TransactionReceipt, Tx } from 'web3/types.js'
 import { contractAddress, privateKey } from './config'
+import { tokenTransfer, TokenTransfer } from './token-transfer.js'
+import { TransactionReceipt } from 'web3/types.js'
+import { ensureDir, writeJSON } from 'fs-extra'
+import { join } from 'path'
 
 const Web3 = require('web3')
 
@@ -8,16 +11,22 @@ const API_KEY = 'xSa977dElK0pyDw8ipCV'
 const rpcUrl = `https://rinkeby.infura.io/${API_KEY}`
 // const rpcUrl = `http://localhost:7545`
 
+const logsDir = join('/tmp', "charging-station")
+const receiptsDir = join(logsDir, "/reciepts")
+
 const contractArtifact = require('./abi.json')
 const balanceOf = 'balanceOf'
+
+const transferAbi:object = contractArtifact.abi.find(method => method.name === "transfer")
+console.assert(!!transferAbi, `should've found 'transfer'`)
 
 const web3:Web3C = new Web3(rpcUrl)
 const owner = web3.eth.accounts.privateKeyToAccount(privateKey)
 
-let gasPrice = web3.utils.toWei("1", 'shannon')
+const gasPrice = web3.utils.toWei("1", 'shannon')
 const contract = new web3.eth.Contract(contractArtifact.abi, contractAddress, {
   gasPrice,
-  from: owner.address
+  from: owner.address,
 })
 
 export function getAddress () {
@@ -33,25 +42,50 @@ export async function getBalanceOf(target:string):Promise<number> {
 
 export async function transfer(to:string, amount:number):Promise<any> {
   const decimals = await contract.methods.decimals().call()
-  amount = amount * 10 ** decimals
-  console.assert(!!contract.methods.transfer, `transfer not found in `,Object.keys(contract.methods))
-  // await (web3 as any).eth.personal.unlockAccount(owner.address as any)
-  // console.debug(3)
-  // const res = await contract.methods.transfer(to, amount).send()
-  // return res
-  console.debug(`Would have sent ${amount} from ${getAddress()} to ${to}`)
+  amount = Math.floor( amount * 10 ** decimals )
+  if (amount % 1 > 0) {
+    console.log(`Warning: Unhandled rest ${amount % 1} of amount ${amount}`)
+  }
+
+  console.debug(`sending ${amount} 'cents' from ${getAddress()} to ${to} ...`)
+
+  const txs:TokenTransfer[] = [{
+    amount: amount.toString(),
+    gasPrice,
+    contractAddress,
+    networkId: 4,
+    recipient: to,
+  }]
+
+  const signedTxs:string[] = await tokenTransfer(web3, txs, transferAbi, privateKey)
+
+  await Promise.all([ensureDir(receiptsDir), ensureDir(logsDir)])
+
+  const sendPromises:Promise<TransactionReceipt>[] = signedTxs.map(signedTx => web3.eth.sendSignedTransaction(signedTx))
+
+  sendPromises.forEach(p => p
+    .catch(error => writeJSON(join(logsDir, `${new Date().toJSON()}-${amount}-error.json`), error, {spaces: 2})))
+
+  const fsWritePromises = sendPromises
+    .map(p => p
+      .then(receipt => writeJSON(join(receiptsDir, `${receipt.blockNumber}-${receipt.transactionHash}.json`), receipt, {spaces: 2}),
+            error => writeJSON(join(logsDir, `${new Date().toJSON()}-${amount}-error.json`), error, {spaces: 2}))
+    )
+
+  Promise.all(fsWritePromises).then(results => {
+    console.log(`Done writing ${results.length} receipts to ${receiptsDir}`)
+  })
 }
 
 async function test (target:string):Promise<void> {
   console.log(`owner ${getAddress()}`)
-  // console.log(`owners balance ${await getBalanceOf(getAddress())}`)
+  console.log(`owners balance ${await getBalanceOf(getAddress())}`)
   console.log(`token contract address ${contractAddress}`)
 
   try {
     const bal = await getBalanceOf(target)
     console.debug('balance of '+target,bal)
-    const success = await transfer(target,  100)
-    console.debug(success)
+    await transfer(target,  .5 + Math.random() * 1.5)
   }
   catch (e) {
     console.error(e)
@@ -62,4 +96,5 @@ async function test (target:string):Promise<void> {
 
 if (!module.parent) {
     test(process.argv[2])
+    // test('0x51f8A5d539582EB9bF2F71F66BCC0E6B37Abb7cA' || process.argv[2])
 }

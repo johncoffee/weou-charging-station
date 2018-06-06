@@ -32,7 +32,7 @@ export async function tokenTransfer(web3:Web3C, transferOrders:TokenTransfer[], 
         data: data,
       }
 
-      const gas = web3.utils.toWei('52', 'kwei')
+      const gas = '52000'
       tx.gas = gas
 
       return tx

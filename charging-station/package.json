@@ -10,7 +10,9 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/fs-extra": "^5.0.2",
     "cheerio": "^1.0.0-rc.2",
+    "fs-extra": "^6.0.1",
     "koa": "^2.5.1",
     "koa-cors": "0.0.16",
     "web3": "1.0.0-beta.34"
